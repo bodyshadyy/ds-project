@@ -1,4 +1,5 @@
 import tkinter as tk
+import customtkinter as ctk
 from matplotlib.figure import Figure
 from sklearn.cluster import KMeans
 from sklearn.tree import DecisionTreeClassifier
@@ -10,29 +11,30 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler, LabelEncoder
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression, Ridge, Lasso,LogisticRegression
+from sklearn.neighbors import KNeighborsRegressor,KNeighborsClassifier
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.decomposition import PCA
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier,RandomForestRegressor
 from sklearn.naive_bayes import GaussianNB
 
 class SampleApp(tk.Tk):
     def __init__(self):
         tk.Tk.__init__(self)
-        self.title("Tkinter Navigation")
+        self.title("Data science project")
         self.geometry("600x500")
+        ctk.set_appearance_mode("System")  # Modes: "System" (default), "Dark", "Light"
+        ctk.set_default_color_theme("blue")  # Themes: "blue" (default), "green", "dark-blue"
+
 
         self.home_page = HomePage(self)
         self.page1 = Page1(self)
         self.page2 = Page2(self)
         self.page3 = Page3(self)
+        self.page4 = Page4(self)
 
         self.show_home_page()
 
@@ -40,6 +42,7 @@ class SampleApp(tk.Tk):
         self.page1.pack_forget()
         self.page2.pack_forget()
         self.page3.pack_forget()
+        self.page4.pack_forget()
         self.home_page.pack()
 
     def show_page1(self):
@@ -53,30 +56,121 @@ class SampleApp(tk.Tk):
     def show_page3(self):
         self.home_page.pack_forget()
         self.page3.pack()
+    def show_page4(self):
+        self.home_page.pack_forget()
+        self.page4.pack()
 
-class HomePage(tk.Frame):
+class HomePage(ctk.CTkFrame):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
+        ctk.CTkFrame.__init__(self, master)
 
-        self.button1 = tk.Button(self, text="Page 1", command=master.show_page1)
+
+        self.button4 = ctk.CTkButton(self, text="show csv data ", command=master.show_page4)
+        self.button4.pack(pady=10)
+
+
+        self.button1 = ctk.CTkButton(self, text="regression", command=master.show_page2)
         self.button1.pack(pady=10)
 
-        self.button2 = tk.Button(self, text="Page 2", command=master.show_page2)
+        self.button2 = ctk.CTkButton(self, text="classification", command=master.show_page3)
         self.button2.pack(pady=10)
 
-        self.button3 = tk.Button(self, text="Page 3", command=master.show_page3)
+        self.button3 = ctk.CTkButton(self, text="cluster", command=master.show_page1)
         self.button3.pack(pady=10)
 
-class Page1(tk.Frame):
-    def __init__(self, master):
-        tk.Frame.__init__(self, master)
 
-        self.header = tk.Label(self, text="clustering", font=("Helvetica", 18))
+class Page4(ctk.CTkFrame):
+    def __init__(self, master):
+        ctk.CTkFrame.__init__(self, master)
+        self.header = ctk.CTkFrame(self)
+        self.header.pack(fill="x")
+        self.back_button = ctk.CTkButton(self.header, text="back", command=master.show_home_page)
+        self.back_button.pack(side="left")
+
+        self.page2 = ctk.CTkLabel(self.header, text="csv", font=("Helvetica", 18))
+        self.page2.pack(side="left", fill="both", expand=True)
+
+        button_frame = ctk.CTkFrame(self)
+        button_frame.pack(fill=ctk.X)
+
+        # Button to open file dialog
+        self.open_button = ctk.CTkButton(button_frame, text="Open CSV File", command=self.load_csv)
+        self.open_button.pack(padx=5, pady=5)
+
+        # Frame for the table with scrollbars
+        self.table_frame = ctk.CTkFrame(self,border_color="blue")
+        self.table_frame.pack(fill=ctk.BOTH, expand=True,padx=5)
+
+        # Canvas and Scrollbars
+        self.canvas = ctk.CTkCanvas(self.table_frame)
+        self.canvas.pack(side=ctk.LEFT, fill=ctk.BOTH, expand=True)
+
+        self.scrollbar_x = ctk.CTkScrollbar(self.table_frame, orientation=ctk.HORIZONTAL, command=self.canvas.xview)
+        self.scrollbar_x.pack(side=ctk.BOTTOM, fill=ctk.X)
+        self.scrollbar_y = ctk.CTkScrollbar(self.table_frame, orientation=ctk.VERTICAL, command=self.canvas.yview)
+        self.scrollbar_y.pack(side=ctk.RIGHT, fill=ctk.Y)
+        self.canvas.configure(xscrollcommand=self.scrollbar_x.set, yscrollcommand=self.scrollbar_y.set)
+        self.canvas.bind('<Configure>', self.on_canvas_configure)
+
+        self.table_container = ctk.CTkFrame(self.canvas)
+        self.canvas.create_window((0, 0), window=self.table_container, anchor="nw")
+
+    def on_canvas_configure(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox('all'))
+
+    def load_csv(self):
+        file_path = filedialog.askopenfilename(
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+        )
+        if file_path:
+            try:
+                self.display_csv(file_path)
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to read file\n{str(e)}")
+
+    def display_csv(self, file_path):
+        for widget in self.table_container.winfo_children():
+            widget.destroy()
+
+        df = pd.read_csv(file_path)
+        if df.empty:
+            messagebox.showwarning("Warning", "The CSV file is empty")
+            return
+
+        # Create the table headers
+        columns = df.columns
+        for i, column in enumerate(columns):
+            label = ctk.CTkLabel(self.table_container, text=column)
+            label.grid(row=0, column=i, sticky="nsew", padx=10)
+
+        # Create the table rows
+        for i, row in df.iterrows():
+            for j, value in enumerate(row):
+                label = ctk.CTkLabel(self.table_container, text=value)
+                label.grid(row=i+1, column=j, sticky="nsew", padx=10)
+
+        # Make the table cells expand with the window
+        for i in range(len(columns)):
+            self.table_container.grid_columnconfigure(i, weight=1)
+        for i in range(len(df)):
+            self.table_container.grid_rowconfigure(i, weight=1)
+
+        self.canvas.update_idletasks()
+        self.canvas.configure(scrollregion=self.canvas.bbox('all'))
+
+
+
+
+class Page1(ctk.CTkFrame):
+    def __init__(self, master):
+        ctk.CTkFrame.__init__(self, master)
+
+        self.header = ctk.CTkLabel(self, text="clustering", font=("Helvetica", 18))
         self.header.grid(row=0, column=0, columnspan=1)
 
-        self.back_button = tk.Button(self, text="Back", command=master.show_home_page)
+        self.back_button = ctk.CTkButton(self, text="Back", command=master.show_home_page)
         self.back_button.grid(row=0, column=0, columnspan=1, sticky='w')
-        self.btn_load = tk.Button(self, text="Load CSV",command=self.load_csv)
+        self.btn_load = ctk.CTkButton(self, text="Load CSV",command=self.load_csv)
         self.btn_load.grid(row=1)
         self.canvas = tk.Canvas(self, width=600, height=400)
         self.canvas.grid(row=2)
@@ -85,34 +179,34 @@ class Page1(tk.Frame):
         if file_path:
             self.data = pd.read_csv(file_path)
             self.visualize_clusters()
-    
+
     def visualize_clusters(self):
         k = 8  # Number of clusters (you can adjust this)
         kmeans = KMeans(n_clusters=k)
         kmeans.fit(self.data)
         labels = kmeans.predict(self.data)
         centroids = kmeans.cluster_centers_
-    
+
         self.canvas.delete("all")
         fig, ax = plt.subplots(figsize=(6, 4))
-    
+
         colors = ['r', 'g', 'b', 'y', 'c', 'm','k','pink']
         for i in range(k):
             points = np.array([self.data.iloc[j].values for j in range(len(self.data)) if labels[j] == i])
             ax.scatter(points[:, 0], points[:, 1], s=7, c=colors[i])
-    
+
         ax.scatter(centroids[:, 0], centroids[:, 1], marker='*', s=200, c='black')
-    
+
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_title('K-Means Clustering')
-    
+
         canvas = FigureCanvasTkAgg(fig, master=self.canvas)
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
-    
-    
-class GraphFrame(ttk.Frame):
+
+
+class GraphFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -139,19 +233,19 @@ class GraphFrame(ttk.Frame):
                      transform=self.ax.transAxes,
                      fontsize=10)
         self.ax.legend()
-        
+
         self.plot_canvas.draw()
 
-class Page2(tk.Frame):
+class Page2(ctk.CTkFrame):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
+        ctk.CTkFrame.__init__(self, master)
 
-        self.header=tk.Frame(self)
+        self.header=ctk.CTkFrame(self)
         self.header.pack(fill="x")
-        self.back_button = tk.Button(self.header, text="back", command=master.show_home_page)
+        self.back_button = ctk.CTkButton(self.header, text="back", command=master.show_home_page)
         self.back_button.pack(side="left")
 
-        self.page2 = tk.Label(self.header, text="regression", font=("Helvetica", 18))
+        self.page2 = ctk.CTkLabel(self.header, text="regression", font=("Helvetica", 18))
         self.page2.pack(side="left", fill="both", expand=True)
 
 
@@ -165,7 +259,7 @@ class Page2(tk.Frame):
                           'random_forest': RandomForestRegressor()}
 
         self.create_widgets2()
-        plot_button = ttk.Button(self,
+        plot_button = ctk.CTkButton(self,
                                  text="Plot Regression from CSV",
                                  command= self.plot_regression_from_csv)
         plot_button.pack()
@@ -180,57 +274,57 @@ class Page2(tk.Frame):
         notebook.pack(expand=True, fill="both")
 
         # Tab for importing CSV
-        csv_tab = ttk.Frame(notebook)
+        csv_tab = ctk.CTkFrame(notebook)
         notebook.add(csv_tab, text="Import CSV")
         self.create_csv_tab(csv_tab)
 
         # Tab for regression types
-        regression_tab = ttk.Frame(notebook)
+        regression_tab = ctk.CTkFrame(notebook)
         notebook.add(regression_tab, text="Regression")
         self.create_regression_tab(regression_tab)
 
         # Tab for regularization types
-        regularization_tab = ttk.Frame(notebook)
+        regularization_tab = ctk.CTkFrame(notebook)
         notebook.add(regularization_tab, text="Regularization")
         self.create_regularization_tab(regularization_tab)
 
         # Tab for preprocessing
-        preprocess_tab = ttk.Frame(notebook)
+        preprocess_tab = ctk.CTkFrame(notebook)
         notebook.add(preprocess_tab, text="Preprocess")
         self.create_preprocess_tab(preprocess_tab)
 
     def create_csv_tab(self, parent):
         # Frame for importing CSV
-        csv_frame = ttk.Frame(parent)
+        csv_frame = ctk.CTkFrame(parent)
         csv_frame.pack(pady=10)
 
-        csv_label = ttk.Label(csv_frame, text="Select CSV file:")
+        csv_label = ctk.CTkLabel(csv_frame, text="Select CSV file:")
         csv_label.grid(row=0, column=0, padx=10)
 
         self.csv_path_var = tk.StringVar()
-        csv_entry = ttk.Entry(csv_frame,
+        csv_entry = ctk.CTkEntry(csv_frame,
                               textvariable=self.csv_path_var,
                               state="readonly",
                               width=40)
         csv_entry.grid(row=0, column=1, padx=10)
 
-        csv_button = ttk.Button(csv_frame,
+        csv_button = ctk.CTkButton(csv_frame,
                                 text="Browse",
                                 command=self.select_csv_file)
         csv_button.grid(row=0, column=2, padx=10)
 
     def create_regression_tab(self, parent):
         # Frame for the regression radio buttons
-        regression_frame = ttk.Frame(parent)
+        regression_frame = ctk.CTkFrame(parent)
         regression_frame.pack(pady=10)
 
-        linear_radio = ttk.Radiobutton(regression_frame,
+        linear_radio = ctk.CTkRadioButton(regression_frame,
                                        text="Linear Regression",
                                        variable=self.selected_regressor,
                                        value="linear")
         linear_radio.grid(row=0, column=0, padx=10)
 
-        random_forest_radio = ttk.Radiobutton(regression_frame,
+        random_forest_radio = ctk.CTkRadioButton(regression_frame,
                                               text="Random Forest Regression",
                                               variable=self.selected_regressor,
                                               value="random_forest")
@@ -238,7 +332,7 @@ class Page2(tk.Frame):
             row=1,
             column=0,
         )
-        KNN_button = ttk.Radiobutton(regression_frame,
+        KNN_button = ctk.CTkRadioButton(regression_frame,
                                      text="KNN Regression",
                                      variable=self.selected_regressor,
                                      value="KNN")
@@ -246,16 +340,16 @@ class Page2(tk.Frame):
 
     def create_regularization_tab(self, parent):
         # Frame for the regularization radio buttons
-        regularization_frame = ttk.Frame(parent)
+        regularization_frame = ctk.CTkFrame(parent)
         regularization_frame.pack(pady=10)
 
-        ridge_radio = ttk.Radiobutton(regularization_frame,
+        ridge_radio = ctk.CTkRadioButton(regularization_frame,
                                       text="Ridge Regression",
                                       variable=self.selected_regressor,
                                       value="ridge")
         ridge_radio.grid(row=0, column=0, padx=10)
 
-        lasso_radio = ttk.Radiobutton(regularization_frame,
+        lasso_radio = ctk.CTkRadioButton(regularization_frame,
                                       text="Lasso Regression",
                                       variable=self.selected_regressor,
                                       value="lasso")
@@ -264,7 +358,7 @@ class Page2(tk.Frame):
     def create_preprocess_tab(self, parent):
 
         # Frame for preprocessing options
-        preprocess_frame = ttk.Frame(parent)
+        preprocess_frame = ctk.CTkFrame(parent)
         preprocess_frame.pack(pady=10)
 
         # Checkboxes for preprocessing options
@@ -274,7 +368,7 @@ class Page2(tk.Frame):
         self.scale_checkbox.grid(row=0, column=0, padx=10)
 
         # Degree of polynomial
-        degree_label = ttk.Label(preprocess_frame, text="Polynomial Degree:")
+        degree_label = ctk.CTkLabel(preprocess_frame, text="Polynomial Degree:")
         degree_label.grid(row=1, column=0, padx=10)
 
         degree_spinbox = ttk.Spinbox(preprocess_frame,
@@ -285,10 +379,10 @@ class Page2(tk.Frame):
         degree_spinbox.grid(row=1, column=1)
 
         # Encoder selection
-        label_encoder = ttk.Radiobutton(preprocess_frame, text='Label Encoder', variable=self.encode, value='label')
+        label_encoder = ctk.CTkRadioButton(preprocess_frame, text='Label Encoder', variable=self.encode, value='label')
         label_encoder.grid(row=2, column=0, padx=10)
 
-        hot_encoder = ttk.Radiobutton(preprocess_frame, text='One Hot Encoder', variable=self.encode, value='hot')
+        hot_encoder = ctk.CTkRadioButton(preprocess_frame, text='One Hot Encoder', variable=self.encode, value='hot')
         hot_encoder.grid(row=2, column=1, padx=10)
 
     def select_csv_file(self):
@@ -426,28 +520,27 @@ class MatplotlibFigure:
         self.ax.legend([legend_text], loc='lower left')
 
         self.canvas.draw()
-
-class Page3(tk.Frame):
+class Page3(ctk.CTkFrame):
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
-        self.header=tk.Frame(self)
+        ctk.CTkFrame.__init__(self, master)
+        self.header=ctk.CTkFrame(self)
         self.header.pack(fill="x")
-        self.back_button = tk.Button(self.header, text="back", command=master.show_home_page)
+        self.back_button = ctk.CTkButton(self.header, text="back", command=master.show_home_page)
         self.back_button.pack(side="left")
 
-        self.page2 = tk.Label(self.header, text="classification", font=("Helvetica", 18))
+        self.page2 = ctk.CTkLabel(self.header, text="classification", font=("Helvetica", 18))
         self.page2.pack(side="left", fill="both", expand=True)
 
 
- 
-        classify_button = ttk.Button(self, text="Classify", command=self.classify_and_plot)
+
+        classify_button = ctk.CTkButton(self, text="Classify", command=self.classify_and_plot)
         classify_button.pack(padx=10, pady=10)
 
         # Tabs
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True)
 
-        csv_tab = ttk.Frame(self.notebook)
+        csv_tab = ctk.CTkFrame(self.notebook)
         self.notebook.add(csv_tab, text="Import CSV")
         self.create_csv_tab(csv_tab)
 
@@ -458,23 +551,23 @@ class Page3(tk.Frame):
 
         self.classifier = None
 
- 
+
     def create_csv_tab(self, parent):
         # Frame for importing CSV
-        csv_frame = ttk.Frame(parent)
+        csv_frame = ctk.CTkFrame(parent)
         csv_frame.pack(pady=10)
 
-        csv_label = ttk.Label(csv_frame, text="Select CSV file:")
+        csv_label = ctk.CTkLabel(csv_frame, text="Select CSV file:")
         csv_label.grid(row=0, column=0, padx=10)
 
         self.csv_path_var = tk.StringVar()
-        csv_entry = ttk.Entry(csv_frame,
+        csv_entry = ctk.CTkEntry(csv_frame,
                               textvariable=self.csv_path_var,
                               state="readonly",
                               width=40)
         csv_entry.grid(row=0, column=1, padx=10)
 
-        csv_button = ttk.Button(csv_frame,
+        csv_button = ctk.CTkButton(csv_frame,
                                 text="Browse",
                                 command=self.select_csv_file)
         csv_button.grid(row=0, column=2, padx=10)
@@ -520,25 +613,24 @@ class Page3(tk.Frame):
         if not hasattr(self, 'matplotlib_figure'):
             self.matplotlib_figure = MatplotlibFigure(self.root)
 
-        self.matplotlib_figure.update_plot(X_train, y_train, X_test, y_test, self.classifier)
+        self.matplotlib_figure.update_plot(X_train, y_train, X_test, y_test, self.classifier) 
 
+class ModelSelectionTab(ctk.CTkFrame):
 
-class ModelSelectionTab(ttk.Frame):
-    
     def __init__(self, master):
         super().__init__(master)
-    
+
         self.model_selection = tk.StringVar(value="Logistic Regression")
-    
-        label = tk.Label(self, text="Select Classification Model:")
+
+        label = ctk.CTkLabel(self, text="Select Classification Model:")
         label.pack(padx=10, pady=10)
-    
+
         models = ["Logistic Regression", "Random Forest", "K-Nearest Neighbors", "Gaussian Naive Bayes","Decision Tree"]
         for model in models:
-            radio = ttk.Radiobutton(self, text=model, variable=self.model_selection, value=model)
+            radio = ctk.CTkRadioButton(self, text=model, variable=self.model_selection, value=model)
             radio.pack(side="top", padx=10, pady=5, anchor=tk.W)
-    
-    
+
+
 
 if __name__ == "__main__":
     app = SampleApp()
